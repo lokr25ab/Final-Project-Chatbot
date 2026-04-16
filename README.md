@@ -5,10 +5,10 @@ High-Level Architecture
 Pipeline overview
 
 Data ingestion (API → raw JSON)
-Document normalization (JSON → clean text documents)
-Chunking & metadata enrichment
-Embedding & indexing
-Retrieval-Augmented Generation (RAG)
-Optional agentic enhancements
-Evaluation & benchmarking
-Application interface (chat UI)
+//Document normalization (JSON → clean text documents)
+//Chunking & metadata enrichment
+//Embedding & indexing
+//Retrieval-Augmented Generation (RAG)
+//Optional agentic enhancements
+//Evaluation & benchmarking
+//Application interface (chat UI)
