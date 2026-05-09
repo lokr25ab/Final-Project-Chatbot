@@ -1,1 +1,118 @@
+"""
+Embeddings + Simple Vector Store
+--------------------------------
 
+Purpose:
+- Convert text chunks into embeddings
+- Store them locally
+- Enable semantic search
+
+This is step 3+4 in the RAG pipeline.
+"""
+
+from openai import OpenAI
+import json
+
+# Initialize client
+client = OpenAI()
+
+# ---------------------------------------------------------------------
+# LOAD DATA (from previous step)
+# ---------------------------------------------------------------------
+
+def load_chunks():
+    """
+    Import pipeline from data_ingestion
+    """
+    from pipeline.data_ingestion import run_pipeline
+    return run_pipeline()
+
+
+# ---------------------------------------------------------------------
+# CREATE EMBEDDINGS
+# ---------------------------------------------------------------------
+
+def create_embeddings(chunks):
+    """
+    Convert text chunks into embeddings
+    """
+    embedded_data = []
+
+    for i, chunk in enumerate(chunks):
+        print(f"Embedding {i+1}/{len(chunks)}")
+
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=chunk["text"]
+        )
+
+        embedded_data.append({
+            "text": chunk["text"],
+            "title": chunk["title"],
+            "embedding": response.data[0].embedding
+        })
+
+    return embedded_data
+
+
+# ---------------------------------------------------------------------
+# SAVE TO FILE
+# ---------------------------------------------------------------------
+
+def save_embeddings(data, filename="embeddings.json"):
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+# ---------------------------------------------------------------------
+# SIMPLE SEARCH (cosine similarity)
+# ---------------------------------------------------------------------
+
+import numpy as np
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
+def search(query, embedded_data, top_k=3):
+    """
+    Find most relevant chunks
+    """
+
+    query_embedding = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=query
+    ).data[0].embedding
+
+    scores = []
+
+    for item in embedded_data:
+        score = cosine_similarity(query_embedding, item["embedding"])
+        scores.append((score, item))
+
+    scores.sort(key=lambda x: x[0], reverse=True)
+
+    return [item for _, item in scores[:top_k]]
+
+
+# ---------------------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("Loading chunks...")
+    chunks = load_chunks()
+
+    print("Creating embeddings...")
+    embedded_data = create_embeddings(chunks)
+
+    print("Saving embeddings...")
+    save_embeddings(embedded_data)
+
+    print("\n--- TEST SEARCH ---\n")
+
+    results = search("vold straf", embedded_data)
+
+    for r in results:
+        print(f"\nTitle: {r['title']}")
+        print(r["text"][:300])
