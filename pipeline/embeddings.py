@@ -42,7 +42,7 @@ def create_embeddings(chunks):
         print(f"Embedding {i+1}/{len(chunks)}")
 
         response = client.embeddings.create(
-            model="text-embedding-3-small",
+            model="text-embedding-ada-002",
             input=chunk["text"]
         )
 
