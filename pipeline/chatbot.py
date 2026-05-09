@@ -1,25 +1,27 @@
 """
-RAG Chatbot
------------
+RAG Chatbot (Multi-model comparison)
+-----------------------------------
 
 Purpose:
 - Take a user query
 - Retrieve relevant chunks
-- Generate answer using LLM
+- Generate answers using multiple LLMs
+- Compare model outputs
 
 Final step in the pipeline.
 """
 
 from openai import OpenAI
 import json
+import time
 
 # Import search from embeddings module
 from pipeline.embeddings import search
 
 client = OpenAI()
 
-# Choose model (you HAVE access to these)
-MODEL = "gpt-5-mini"   # or "gpt-5-nano"
+# Models to compare
+MODELS = ["gpt-5-nano", "gpt-5-mini"]
 
 
 # ---------------------------------------------------------------------
@@ -43,9 +45,9 @@ def build_context(results):
 # GENERATE ANSWER
 # ---------------------------------------------------------------------
 
-def generate_answer(query, context):
+def generate_answer(query, context, model):
     response = client.chat.completions.create(
-        model=MODEL,
+        model=model,
         temperature=0.2,
         messages=[
             {
@@ -84,8 +86,21 @@ if __name__ == "__main__":
 
         context = build_context(results)
 
-        print("Generating answer...\n")
-        answer = generate_answer(query, context)
+        # Optional: show sources (good for debugging + exam)
+        print("\n--- SOURCES ---")
+        for i, r in enumerate(results):
+            print(f"\nSource {i+1}: {r['title']}")
+            print(r["text"][:200])
 
-        print("Answer:\n")
-        print(answer)
+        print("\nGenerating answers...\n")
+
+        # Compare models
+        for model in MODELS:
+            start = time.time()
+
+            answer = generate_answer(query, context, model)
+
+            end = time.time()
+
+            print(f"\n===== MODEL: {model} ({round(end - start, 2)}s) =====\n")
+            print(answer)
