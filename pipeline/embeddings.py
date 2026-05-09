@@ -80,7 +80,7 @@ def search(query, embedded_data, top_k=3):
     """
 
     query_embedding = client.embeddings.create(
-        model="text-embedding-3-small",
+        model="text-embedding-ada-002",
         input=query
     ).data[0].embedding
 
