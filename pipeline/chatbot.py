@@ -43,7 +43,7 @@ def build_context(results):
 
 def generate_answer(query, context):
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-nano",
         messages=[
             {
                 "role": "system",
