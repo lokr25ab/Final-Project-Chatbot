@@ -42,7 +42,7 @@ def create_embeddings(chunks):
         print(f"Embedding {i+1}/{len(chunks)}")
 
         response = client.embeddings.create(
-            model="text-embedding-ada-002",
+            model="text-embedding-3-large",
             input=chunk["text"]
         )
 
@@ -80,7 +80,7 @@ def search(query, embedded_data, top_k=3):
     """
 
     query_embedding = client.embeddings.create(
-        model="text-embedding-ada-002",
+        model="text-embedding-3-large",
         input=query
     ).data[0].embedding
 
