@@ -18,6 +18,9 @@ from pipeline.embeddings import search
 
 client = OpenAI()
 
+# Choose model (you HAVE access to these)
+MODEL = "gpt-5-mini"   # or "gpt-5-nano"
+
 
 # ---------------------------------------------------------------------
 # LOAD EMBEDDINGS
@@ -33,17 +36,16 @@ def load_embeddings(filename="embeddings.json"):
 # ---------------------------------------------------------------------
 
 def build_context(results):
-    context = "\n\n".join([r["text"] for r in results])
-    return context
+    return "\n\n".join([r["text"] for r in results])
 
 
 # ---------------------------------------------------------------------
 # GENERATE ANSWER
 # ---------------------------------------------------------------------
 
-def generate_answer(query, context, model):
+def generate_answer(query, context):
     response = client.chat.completions.create(
-        model=model,
+        model=MODEL,
         temperature=0.2,
         messages=[
             {
