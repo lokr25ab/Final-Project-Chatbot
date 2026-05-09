@@ -41,13 +41,17 @@ def build_context(results):
 # GENERATE ANSWER
 # ---------------------------------------------------------------------
 
-def generate_answer(query, context):
+def generate_answer(query, context, model):
     response = client.chat.completions.create(
-        model="gpt-5-nano",
+        model=model,
+        temperature=0.2,
         messages=[
             {
                 "role": "system",
-                "content": "You are a legal assistant. Answer based ONLY on the provided context."
+                "content": (
+                    "You are a legal assistant. Answer ONLY using the provided context. "
+                    "If the answer is not in the context, say you don't know."
+                )
             },
             {
                 "role": "user",
