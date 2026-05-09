@@ -8,7 +8,7 @@ Purpose:
 - Enable semantic search
 
 This is step 3+4 in the RAG pipeline.
-"""
+
 
 from openai import OpenAI
 import json
