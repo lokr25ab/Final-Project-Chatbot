@@ -1,20 +1,12 @@
 """
 Embeddings + Simple Vector Store
 --------------------------------
-
-Purpose:
-- Convert text chunks into embeddings
-- Store them locally
-- Enable semantic search
-
-This is step 3+4 in the RAG pipeline.
 """
 
 from openai import OpenAI
 import json
 import numpy as np
 
-# Initialize client
 client = OpenAI()
 
 # ---------------------------------------------------------------------
