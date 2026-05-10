@@ -27,7 +27,6 @@ def load_chunks():
     from pipeline.data_ingestion import run_pipeline
     return run_pipeline()
 
-
 # ---------------------------------------------------------------------
 # CREATE EMBEDDINGS
 # ---------------------------------------------------------------------
