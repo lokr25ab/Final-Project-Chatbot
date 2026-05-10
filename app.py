@@ -7,7 +7,7 @@ st.set_page_config(page_title="Vidensbasen RAG Chatbot", page_icon="⚖️")
 st.title("⚖️ Anklagemyndigheden Chatbot")
 st.markdown("Spørg om danske juridiske retningslinjer (Ask about Danish legal guidelines).")
 
-# --- NEW: Model Selection in the Sidebar ---
+# --- Model Selection in the Sidebar ---
 with st.sidebar:
     st.header("⚙️ Indstillinger (Settings)")
     selected_model = st.selectbox(
@@ -35,9 +35,12 @@ if prompt := st.chat_input("Hvad vil du gerne vide?"):
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
-        with st.spinner("Søger i Vidensbasen... (Searching...)"):
+        with st.spinner(f"Søger i Vidensbasen med... (Searching with...)...{selected_model} "):
+            # --- TRIPWIRE 1 ---
+            print(f"TRIPWIRE 1 (app.py): Sending model -> {selected_model}")
+
             # Call the chatbot function we built in Phase 4
-            response = ask_chatbot(prompt)
+            response = ask_chatbot(prompt, model=selected_model)
             st.markdown(response)
             
     # Add assistant response to chat history

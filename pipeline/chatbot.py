@@ -20,8 +20,12 @@ def build_context(results):
     return context_str
 
 def ask_chatbot(query: str, model="gpt-5-nano"):
+
+    # --- TRIPWIRE 2 ---
+    print(f"TRIPWIRE 2 (chatbot.py): Received model -> {model}")
+
     print(f"\n🔎 Searching database for: '{query}'")
-    
+
     # 1. Retrieve relevant documents
     retrieved_chunks = search_db(query, n_results=4)
     
