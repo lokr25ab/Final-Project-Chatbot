@@ -1,65 +1,91 @@
 """
-RAG Chatbot (Multi-model comparison)
------------------------------------
+Embeddings + Simple Vector Store
+--------------------------------
+
+Purpose:
+- Convert text chunks into embeddings
+- Store them locally
+- Enable semantic search
+
+This is step 3+4 in the RAG pipeline.
 """
 
 from openai import OpenAI
 import json
+import numpy as np
 
-
+# Initialize client
 client = OpenAI()
 
-# Models to compare
-MODELS = [
-    "gpt-5-nano",
-    "gpt-5-mini"
-]
-
 # ---------------------------------------------------------------------
-# LOAD EMBEDDINGS
+# LOAD DATA
 # ---------------------------------------------------------------------
 
-def load_embeddings(filename="embeddings.json"):
-    with open(filename, "r", encoding="utf-8") as f:
-        return json.load(f)
+def load_chunks():
+
+    from pipeline.data_ingestion import run_pipeline
+    return run_pipeline()
 
 # ---------------------------------------------------------------------
-# BUILD CONTEXT
+# CREATE EMBEDDINGS
 # ---------------------------------------------------------------------
 
-def build_context(results):
-    return "\n\n".join([r["text"] for r in results])
+def create_embeddings(chunks):
 
-# ---------------------------------------------------------------------
-# GENERATE ANSWERS
-# ---------------------------------------------------------------------
+    embedded_data = []
 
-def generate_answers(query, context):
+    for i, chunk in enumerate(chunks):
 
-    answers = {}
+        print(f"Embedding {i+1}/{len(chunks)}")
 
-    for model in MODELS:
-
-        print(f"Generating answer with {model}...")
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a legal assistant. "
-                        "Answer ONLY using the provided context. "
-                        "If the answer is not in the context, say you don't know."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"Context:\n{context}\n\nQuestion: {query}"
-                }
-            ]
+        response = client.embeddings.create(
+            model="text-embedding-3-large",
+            input=chunk["text"]
         )
 
-        answers[model] = response.choices[0].message.content
+        embedded_data.append({
+            "text": chunk["text"],
+            "title": chunk["title"],
+            "embedding": response.data[0].embedding
+        })
 
-    return answers
+    return embedded_data
+
+# ---------------------------------------------------------------------
+# SAVE EMBEDDINGS
+# ---------------------------------------------------------------------
+
+def save_embeddings(data, filename="embeddings.json"):
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+# ---------------------------------------------------------------------
+# COSINE SIMILARITY
+# ---------------------------------------------------------------------
+
+def cosine_similarity(a, b):
+
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# ---------------------------------------------------------------------
+# SEARCH
+# ---------------------------------------------------------------------
+
+def search(query, embedded_data, top_k=3):
+
+    query_embedding = client.embeddings.create(
+        model="text-embedding-3-large",
+        input=query
+    ).data[0].embedding
+
+    scores = []
+
+    for item in embedded_data:
+
+        score = cosine_similarity(query_embedding, item["embedding"])
+        scores.append((score, item))
+
+    scores.sort(key=lambda x: x[0], reverse=True)
+
+    return [item for _, item in scores[:top_k]]
