@@ -46,6 +46,7 @@ def build_context(results):
 # ---------------------------------------------------------------------
 
 def generate_answer(query, context, model):
+
     response = client.chat.completions.create(
         model=model,
         temperature=0.2,
@@ -53,7 +54,8 @@ def generate_answer(query, context, model):
             {
                 "role": "system",
                 "content": (
-                    "You are a legal assistant. Answer ONLY using the provided context. "
+                    "You are a legal assistant. "
+                    "Answer ONLY using the provided context. "
                     "If the answer is not in the context, say you don't know."
                 )
             },
@@ -72,10 +74,12 @@ def generate_answer(query, context, model):
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
+
     print("Loading embeddings...")
     data = load_embeddings()
 
     while True:
+
         query = input("\nAsk a legal question (or type 'exit'): ")
 
         if query.lower() == "exit":
@@ -86,8 +90,9 @@ if __name__ == "__main__":
 
         context = build_context(results)
 
-        # Optional: show sources (good for debugging + exam)
+        # Optional: show retrieved sources
         print("\n--- SOURCES ---")
+
         for i, r in enumerate(results):
             print(f"\nSource {i+1}: {r['title']}")
             print(r["text"][:200])
@@ -96,6 +101,7 @@ if __name__ == "__main__":
 
         # Compare models
         for model in MODELS:
+
             start = time.time()
 
             answer = generate_answer(query, context, model)
@@ -103,4 +109,5 @@ if __name__ == "__main__":
             end = time.time()
 
             print(f"\n===== MODEL: {model} ({round(end - start, 2)}s) =====\n")
+
             print(answer)
