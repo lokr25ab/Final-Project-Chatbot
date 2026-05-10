@@ -49,7 +49,7 @@ def generate_answer(query, context, model):
 
     response = client.chat.completions.create(
         model=model,
-        temperature=0.2,
+       
         messages=[
             {
                 "role": "system",
