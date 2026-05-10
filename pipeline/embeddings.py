@@ -6,7 +6,6 @@ RAG Chatbot (Multi-model comparison)
 from openai import OpenAI
 import json
 
-from pipeline.embeddings import search
 
 client = OpenAI()
 
