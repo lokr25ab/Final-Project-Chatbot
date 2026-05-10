@@ -1,0 +1,20 @@
+# macOS system files
+.DS_Store
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Virtual Environments (if you use them)
+venv/
+env/
+
+# IMPORTANT: Do not upload your Vector Database! 
+# It is too large and should be built locally by whoever runs the code.
+chroma_db/
+
+# IMPORTANT: Any data export folders
+vidensbase_export/
+
+# IMPORTANT: Environment variables (if you ever put your API key in a file)
+.env

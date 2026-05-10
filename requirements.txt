@@ -1,0 +1,23 @@
+# Web Scraping & API
+requests
+beautifulsoup4
+
+# Vector Database & Embeddings
+chromadb
+sentence-transformers
+numpy<2
+
+# LLM & Orchestration
+openai
+langchain
+langchain-openai
+langchain-huggingface
+tiktoken
+
+# User Interface
+streamlit
+
+# Evaluation
+ragas
+datasets
+eval_type_backport
