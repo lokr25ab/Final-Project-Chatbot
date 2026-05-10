@@ -1,118 +1,57 @@
 """
-Embeddings + Simple Vector Store
---------------------------------
+Embeddings and Vector Database
+------------------------------
+Handles storing and searching document chunks using ChromaDB.
+"""
+import chromadb
+from chromadb.utils import embedding_functions
 
-Purpose:
-- Convert text chunks into embeddings
-- Store them locally
-- Enable semantic search
+# Initialize a local persistent Chroma database
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
-This is step 3+4 in the RAG pipeline.
+# Use a Multilingual model that understands Danish!
+embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="paraphrase-multilingual-MiniLM-L12-v2"
+)
 
+# Create or load the collection
+collection = chroma_client.get_or_create_collection(
+    name="legal_documents",
+    embedding_function=embedding_func
+)
 
-from openai import OpenAI
-import json
+# Build Vector DB
+def build_vector_db(chunks):
+    """Takes chunks from data_ingestion.py and puts them in ChromaDB"""
+    print(f"🧠 Embedding {len(chunks)} chunks into ChromaDB...")
+    
+    documents = [chunk["text"] for chunk in chunks]
+    metadatas = [{"title": chunk["title"], "source": chunk["id"]} for chunk in chunks]
+    ids = [f"{chunk['id']}_chunk_{i}" for i, chunk in enumerate(chunks)]
 
-# Initialize client
-client = OpenAI()
+    # Add to database (Chroma automatically handles the vectorization)
+    collection.upsert(
+        documents=documents,
+        metadatas=metadatas,
+        ids=ids
+    )
+    print("✅ Vector database populated!")
 
-# ---------------------------------------------------------------------
-# LOAD DATA (from previous step)
-# ---------------------------------------------------------------------
-
-def load_chunks():
-    """
-    Import pipeline from data_ingestion
-    """
-    from pipeline.data_ingestion import run_pipeline
-    return run_pipeline()
-
-
-# ---------------------------------------------------------------------
-# CREATE EMBEDDINGS
-# ---------------------------------------------------------------------
-
-def create_embeddings(chunks):
-    """
-    Convert text chunks into embeddings
-    """
-    embedded_data = []
-
-    for i, chunk in enumerate(chunks):
-        print(f"Embedding {i+1}/{len(chunks)}")
-
-        response = client.embeddings.create(
-            model="text-embedding-3-large",
-            input=chunk["text"]
-        )
-
-        embedded_data.append({
-            "text": chunk["text"],
-            "title": chunk["title"],
-            "embedding": response.data[0].embedding
-        })
-
-    return embedded_data
-
-
-# ---------------------------------------------------------------------
-# SAVE TO FILE
-# ---------------------------------------------------------------------
-
-def save_embeddings(data, filename="embeddings.json"):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-
-
-# ---------------------------------------------------------------------
-# SIMPLE SEARCH (cosine similarity)
-# ---------------------------------------------------------------------
-
-import numpy as np
-
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-
-def search(query, embedded_data, top_k=3):
-    """
-    Find most relevant chunks
-    """
-
-    query_embedding = client.embeddings.create(
-        model="text-embedding-3-large",
-        input=query
-    ).data[0].embedding
-
-    scores = []
-
-    for item in embedded_data:
-        score = cosine_similarity(query_embedding, item["embedding"])
-        scores.append((score, item))
-
-    scores.sort(key=lambda x: x[0], reverse=True)
-
-    return [item for _, item in scores[:top_k]]
-
-
-# ---------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------
-
-if __name__ == "__main__":
-    print("Loading chunks...")
-    chunks = load_chunks()
-
-    print("Creating embeddings...")
-    embedded_data = create_embeddings(chunks)
-
-    print("Saving embeddings...")
-    save_embeddings(embedded_data)
-
-    print("\n--- TEST SEARCH ---\n")
-
-    results = search("vold straf", embedded_data)
-
-    for r in results:
-        print(f"\nTitle: {r['title']}")
-        print(r["text"][:300])
+# Search the Database
+def search_db(query: str, n_results: int = 3):
+    """Searches the database for the most relevant chunks"""
+    results = collection.query(
+        query_texts=[query],
+        n_results=n_results
+    )
+    
+    # Format results nicely
+    formatted_results = []
+    if results['documents'][0]:
+        for i in range(len(results['documents'][0])):
+            formatted_results.append({
+                "text": results['documents'][0][i],
+                "title": results['metadatas'][0][i]["title"],
+                "source": results['metadatas'][0][i]["source"]
+            })
+    return formatted_results
