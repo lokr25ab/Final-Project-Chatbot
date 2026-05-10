@@ -1,113 +1,93 @@
 """
-RAG Chatbot (Multi-model comparison)
+RAG Chatbot 
 -----------------------------------
-
-Purpose:
-- Take a user query
-- Retrieve relevant chunks
-- Generate answers using multiple LLMs
-- Compare model outputs
-
-Final step in the pipeline.
+Connects User Query -> ChromaDB -> OpenAI
 """
-
 from openai import OpenAI
-import json
-import time
+import os
 
-# Import search from embeddings module
-from pipeline.embeddings import search
+# Import the search function from our new embeddings file
+from pipeline.embeddings import search_db
 
+# Ensure you have your OPENAI_API_KEY set in your environment variables
 client = OpenAI()
 
-# Models to compare
-MODELS = ["gpt-5-nano", "gpt-5-mini"]
-
-
-# ---------------------------------------------------------------------
-# LOAD EMBEDDINGS
-# ---------------------------------------------------------------------
-
-def load_embeddings(filename="embeddings.json"):
-    with open(filename, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# ---------------------------------------------------------------------
-# BUILD CONTEXT
-# ---------------------------------------------------------------------
-
 def build_context(results):
-    return "\n\n".join([r["text"] for r in results])
+    """Formats the retrieved chunks into a single context string"""
+    context_str = ""
+    for i, r in enumerate(results):
+        context_str += f"--- Source {i+1}: {r['title']} ---\n{r['text']}\n\n"
+    return context_str
 
+def ask_chatbot(query: str, model="gpt-5-nano"):
+    print(f"\n🔎 Searching database for: '{query}'")
+    
+    # 1. Retrieve relevant documents
+    retrieved_chunks = search_db(query, n_results=4)
+    
+    if not retrieved_chunks:
+        return "I couldn't find any relevant legal documents for that query."
 
-# ---------------------------------------------------------------------
-# GENERATE ANSWER
-# ---------------------------------------------------------------------
-
-def generate_answer(query, context, model):
-
+    # 2. Build the context string
+    context = build_context(retrieved_chunks)
+    
+    # 3. Generate answer using OpenAI
+    print(f"🤖 Generating answer with {model}...\n")
     response = client.chat.completions.create(
         model=model,
-       
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are a legal assistant. "
-                    "Answer ONLY using the provided context. "
-                    "If the answer is not in the context, say you don't know."
+                    "Du er en dansk juridisk assistent (You are a Danish legal assistant). "
+                    "Besvar KUN spørgsmålet baseret på den medfølgende kontekst. "
+                    "Hvis svaret ikke findes i konteksten, skal du sige 'Jeg ved det ikke baseret på de tilgængelige dokumenter.'"
                 )
             },
             {
                 "role": "user",
-                "content": f"Context:\n{context}\n\nQuestion: {query}"
+                "content": f"Kontekst:\n{context}\n\nSpørgsmål: {query}"
             }
         ]
     )
 
-    return response.choices[0].message.content
+    # 1. Get the LLM's text answer
+    final_answer = response.choices[0].message.content
+    
+    # 2. Extract unique sources and format them as URLs
+    HIVE_ID = "6dfa19d8-18cc-47d6-b4c4-3bd07bc15ec0"
+    unique_urls = set()
+    
+    for chunk in retrieved_chunks:
+        # Construct the official Vidensbasen URL using the Hive ID and Document ID
+        doc_id = chunk['source']
+        url = f"https://vidensbasen.anklagemyndigheden.dk/h/{HIVE_ID}/{doc_id}"
+        
+        # We also grab the title to make the link look nice!
+        title = chunk['title']
+        unique_urls.add(f"- [{title}]({url})")
+        
+    # 3. Append the sources to the bottom of the answer
+    final_answer += "\n\n---\n**Kilder (Sources):**\n" + "\n".join(unique_urls)
 
+    return final_answer
+    # return response.choices[0].message.content
 
 # ---------------------------------------------------------------------
-# MAIN LOOP
+# MAIN SCRIPT TO RUN THE WHOLE PIPELINE
 # ---------------------------------------------------------------------
-
 if __name__ == "__main__":
+    # Optional: If you haven't built the database yet, uncomment the lines below:
+    # from pipeline.data_ingestion import run_pipeline
+    # from pipeline.embeddings import build_vector_db
+    # chunks = run_pipeline()
+    # build_vector_db(chunks)
 
-    print("Loading embeddings...")
-    data = load_embeddings()
-
-    while True:
-
-        query = input("\nAsk a legal question (or type 'exit'): ")
-
-        if query.lower() == "exit":
-            break
-
-        print("Searching relevant documents...")
-        results = search(query, data)
-
-        context = build_context(results)
-
-        # Optional: show retrieved sources
-        print("\n--- SOURCES ---")
-
-        for i, r in enumerate(results):
-            print(f"\nSource {i+1}: {r['title']}")
-            print(r["text"][:200])
-
-        print("\nGenerating answers...\n")
-
-        # Compare models
-        for model in MODELS:
-
-            start = time.time()
-
-            answer = generate_answer(query, context, model)
-
-            end = time.time()
-
-            print(f"\n===== MODEL: {model} ({round(end - start, 2)}s) =====\n")
-
-            print(answer)
+    # Test the chatbot
+    user_question = "Hvad er retningslinjerne for vold?" # What are the guidelines for violence?
+    answer = ask_chatbot(user_question)
+    
+    print("\n" + "="*50)
+    print("SVAR (ANSWER):")
+    print("="*50)
+    print(answer)
