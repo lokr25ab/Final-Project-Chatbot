@@ -1,117 +1,66 @@
 """
-Embeddings + Simple Vector Store
---------------------------------
-
-Purpose:
-- Convert text chunks into embeddings
-- Store them locally
-- Enable semantic search
-
-This is step 3+4 in the RAG pipeline.
+RAG Chatbot (Multi-model comparison)
+-----------------------------------
 """
 
 from openai import OpenAI
 import json
 
-# Initialize client
+from pipeline.embeddings import search
+
 client = OpenAI()
 
-# ---------------------------------------------------------------------
-# LOAD DATA (from previous step)
-# ---------------------------------------------------------------------
-
-def load_chunks():
-    """
-    Import pipeline from data_ingestion
-    """
-    from pipeline.data_ingestion import run_pipeline
-    return run_pipeline()
+# Models to compare
+MODELS = [
+    "gpt-5-nano",
+    "gpt-5-mini"
+]
 
 # ---------------------------------------------------------------------
-# CREATE EMBEDDINGS
+# LOAD EMBEDDINGS
 # ---------------------------------------------------------------------
 
-def create_embeddings(chunks):
-    """
-    Convert text chunks into embeddings
-    """
-    embedded_data = []
+def load_embeddings(filename="embeddings.json"):
+    with open(filename, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    for i, chunk in enumerate(chunks):
-        print(f"Embedding {i+1}/{len(chunks)}")
+# ---------------------------------------------------------------------
+# BUILD CONTEXT
+# ---------------------------------------------------------------------
 
-        response = client.embeddings.create(
-            model="text-embedding-3-large",
-            input=chunk["text"]
+def build_context(results):
+    return "\n\n".join([r["text"] for r in results])
+
+# ---------------------------------------------------------------------
+# GENERATE ANSWERS
+# ---------------------------------------------------------------------
+
+def generate_answers(query, context):
+
+    answers = {}
+
+    for model in MODELS:
+
+        print(f"Generating answer with {model}...")
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a legal assistant. "
+                        "Answer ONLY using the provided context. "
+                        "If the answer is not in the context, say you don't know."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Context:\n{context}\n\nQuestion: {query}"
+                }
+            ]
         )
 
-        embedded_data.append({
-            "text": chunk["text"],
-            "title": chunk["title"],
-            "embedding": response.data[0].embedding
-        })
+        answers[model] = response.choices[0].message.content
 
-    return embedded_data
-
-
-# ---------------------------------------------------------------------
-# SAVE TO FILE
-# ---------------------------------------------------------------------
-
-def save_embeddings(data, filename="embeddings.json"):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-
-
-# ---------------------------------------------------------------------
-# SIMPLE SEARCH (cosine similarity)
-# ---------------------------------------------------------------------
-
-import numpy as np
-
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-
-def search(query, embedded_data, top_k=3):
-    """
-    Find most relevant chunks
-    """
-
-    query_embedding = client.embeddings.create(
-        model="text-embedding-3-large",
-        input=query
-    ).data[0].embedding
-
-    scores = []
-
-    for item in embedded_data:
-        score = cosine_similarity(query_embedding, item["embedding"])
-        scores.append((score, item))
-
-    scores.sort(key=lambda x: x[0], reverse=True)
-
-    return [item for _, item in scores[:top_k]]
-
-
-# ---------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------
-
-if __name__ == "__main__":
-    print("Loading chunks...")
-    chunks = load_chunks()
-
-    print("Creating embeddings...")
-    embedded_data = create_embeddings(chunks)
-
-    print("Saving embeddings...")
-    save_embeddings(embedded_data)
-
-    print("\n--- TEST SEARCH ---\n")
-
-    results = search("vold straf", embedded_data)
-
-    for r in results:
-        print(f"\nTitle: {r['title']}")
-        print(r["text"][:300])
+    return answers
