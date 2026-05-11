@@ -1,11 +1,21 @@
 # pipeline/evaluate.py
 import os
+import sys
+
+# 1. CRITICAL FIX: Check for the API key BEFORE importing the chatbot
+if "OPENAI_API_KEY" not in os.environ:
+    print("\n⚠️ ERROR: OpenAI API key is missing!")
+    print("Please run this command in your terminal first:")
+    print("export OPENAI_API_KEY=\"sk-your-key-here\"\n")
+    sys.exit(1)
+
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy
+
+# 2. WARNING FIX: Updated Ragas import path to avoid deprecation warnings and use new Metric Classes
+from ragas.metrics import Faithfulness, AnswerRelevancy, ContextPrecision, ContextRecall
 
 from langchain_openai import ChatOpenAI
-# NEW IMPORT: Bring in the LangChain wrapper for local embeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from pipeline.embeddings import search_db
@@ -24,10 +34,17 @@ class StrictChatOpenAI(ChatOpenAI):
         kwargs['temperature'] = 1
         return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
-# 1. Create a Test Suite
-TEST_QUESTIONS = [
-    "Hvad er retningslinjerne for vold?",
-    "Hvad er straffen for økonomisk bedrageri?",
+# 3. Add 'ground_truth' to your test suite! 
+# (ground_truth will be used by Ragas to compare against the chatbot's answer for a more objective evaluation)
+TEST_DATA = [
+    {
+        "question": "Hvad er retningslinjerne for vold?",
+        "ground_truth": "Retningslinjerne for vold ifølge de medfølgende dokumenter fokuserer på samfundstjeneste, særligt grov vold og strafudmåling."
+    },
+    {
+        "question": "Hvad er straffene for forbrydelser, der involverer en mindreårig?",
+        "ground_truth": "Bøder kan normalt også pålægges unge under 18 år, og bøden reduceres efter alder og indkomst. Sanktioner for unge afhænger også af forbrydelsens alvor."
+    }
 ]
 
 def generate_evaluation_dataset():
@@ -36,8 +53,12 @@ def generate_evaluation_dataset():
     questions = []
     answers = []
     contexts = []
+    ground_truths = []
 
-    for q in TEST_QUESTIONS:
+    for item in TEST_DATA:
+        q = item["question"]
+        gt = item["ground_truth"]
+
         retrieved_chunks = search_db(q, n_results=3)
         context_texts = [chunk['text'] for chunk in retrieved_chunks]
         
@@ -46,20 +67,18 @@ def generate_evaluation_dataset():
         questions.append(q)
         answers.append(bot_answer)
         contexts.append(context_texts)
+        ground_truths.append(gt)
 
     data = {
         "question": questions,
         "answer": answers,
         "contexts": contexts,
+        "ground_truth": ground_truths
     }
     
     return Dataset.from_dict(data)
 
 if __name__ == "__main__":
-    if "OPENAI_API_KEY" not in os.environ:
-        print("ERROR: Please 'export OPENAI_API_KEY=\"your-key\"' first.")
-        exit()
-
     # Step 1: Run your chatbot against the test suite
     eval_dataset = generate_evaluation_dataset()
     
@@ -67,7 +86,6 @@ if __name__ == "__main__":
     judge_llm = StrictChatOpenAI(model="gpt-5-nano")
     
     # Step 2.5: Define the Embedding model for Ragas to use
-    # We use the exact same Danish-friendly model you used in embeddings.py!
     eval_embeddings = HuggingFaceEmbeddings(
         model_name="paraphrase-multilingual-MiniLM-L12-v2"
     )
@@ -78,19 +96,30 @@ if __name__ == "__main__":
     results = evaluate(
         dataset=eval_dataset,
         metrics=[
-            faithfulness,       
-            answer_relevancy,   
+            Faithfulness(),       
+            AnswerRelevancy(),
+            ContextPrecision(),
+            ContextRecall()
         ],
         llm=judge_llm,
-        embeddings=eval_embeddings # <--- TELL RAGAS TO USE THE LOCAL MODEL
+        embeddings=eval_embeddings
     )
     
-    print("\n" + "="*50)
+    print("\n" + "="*80)
     print("📈 EVALUATION SCORES (0.0 to 1.0):")
-    print("="*50)
+    print("="*80)
     
+    # 1. Print the overall average score
+    print("AVERAGE SCORES:")
+    print(results)
+    print("-" * 80)
+    
+    # 2. Safely print the detailed Pandas table
     try:
-        print(results.to_pandas()[['question', 'faithfulness', 'answer_relevancy']])
-    except KeyError:
-        print("Evaluation failed to produce the expected columns. Raw results:")
-        print(results)
+        df = results.to_pandas()
+        print("\nINDIVIDUAL QUESTION SCORES:")
+        # Drop the heavy 'contexts' and 'answer' text columns so it fits on the screen
+        columns_to_show = [col for col in df.columns if col not in ['contexts', 'answer', 'ground_truth', 'reference']]
+        print(df[columns_to_show])
+    except Exception as e:
+        print(f"Could not format table: {e}")
