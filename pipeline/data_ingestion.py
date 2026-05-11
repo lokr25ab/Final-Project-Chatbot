@@ -5,7 +5,7 @@ Data Ingestion + Preprocessing Pipeline
 import requests
 import time
 from bs4 import BeautifulSoup
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 BASE_URL = "https://vidensbasen.anklagemyndigheden.dk"
 PORTAL_ID = "6e302527-f0b3-4a5e-889a-668aa67e5491"
