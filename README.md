@@ -24,8 +24,9 @@ Install all required packages using the provided requirements file.
 *(Note: A specific version of NumPy is required for macOS compatibility with sentence-transformers).*
 ```bash
 python3 -m pip install -r requirements.txt
+```
 
-###3. Set up your OpenAI API Key
+3. Set up your OpenAI API Key
 The generation and evaluation scripts require an OpenAI API key. Export it in your terminal before running any scripts:
 ```bash
 export OPENAI_API_KEY="{sk-your-api-key-here}"
@@ -69,23 +70,13 @@ This will open a browser window where you can ask questions in Danish (e.g., "Hv
 To scientifically evaluate the chatbot's performance (measuring Hallucinations and Relevancy), run the evaluation script:
 ```bash
 python3 -m pipeline.evaluate
-This will run a predefined test suite and output a Pandas DataFrame with the scores.
 ```
+This will run a predefined test suite and output a Pandas DataFrame with the scores.
+
 
 ## 📂 Project Structure
-Final-Project-Chatbot/
-│
-├── app.py                  # Streamlit Web User Interface
-├── api_demo.py             # Sandbox API extraction tool
-├── requirements.txt        # Python dependencies
-├── README.md               # Project documentation
-│
-└── pipeline/
-    ├── __init__.py         
-    ├── data_ingestion.py   # API connection and LangChain chunking
-    ├── embeddings.py       # ChromaDB setup and HuggingFace integration
-    ├── chatbot.py          # RAG retrieval logic and OpenAI generation
-    └── evaluate.py         # Ragas testing suite and custom LLM wrappers
+
+**<img width="546" height="262" alt="Screenshot 2026-06-15 at 20 33 20" src="https://github.com/user-attachments/assets/cba8f4a4-7119-4a1a-84b7-bc58d01a9f97" />
 
 ## High-Level Architecture
 
